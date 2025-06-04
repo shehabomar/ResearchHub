@@ -64,4 +64,5 @@ class JWTService {
     }
 }
 
-export const jwtService = new JWTService();
+const jwtService = new JWTService();
+export { jwtService, JWTPayload, AuthedUser };

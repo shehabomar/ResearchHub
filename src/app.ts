@@ -1,28 +1,11 @@
 import express from 'express';
-import { Pool } from 'pg';
+
 import { config } from './config';
 import cors from 'cors';
 import jwt from 'jsonwebtoken';
 import { jwtService } from './utils/jwt';
 
 const app = express();
-
-// db connection
-const pool = new Pool({
-    host: config.db_host,
-    port: parseInt(config.db_port),
-    user: config.db_user,
-    password: config.db_password,
-    database: config.db_name,
-});
-
-pool.on('connect', () => {
-    console.log("connected to db");
-});
-
-pool.on('error', (err) => {
-    console.error('Database connection error:', err);
-});
 
 // middlewares
 app.use(express.json());
@@ -32,11 +15,11 @@ app.use(cors({
     credentials: true
 }));
 
+// logger
 app.use((req, res, next) => {
     console.log(`${req.method} request for '${req.url}'`);
     console.log("Request body:", req.body);
     console.log("Request headers:", req.headers);
-
     next();
 })
 
@@ -80,4 +63,4 @@ app.listen(config.port, () => {
     console.log(`server is running on port ${config.port}`);
 });
 
-export { app, pool };
+export { app };
