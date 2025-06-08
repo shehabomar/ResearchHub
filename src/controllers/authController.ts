@@ -71,6 +71,8 @@ class AuthController {
             }
             users.push(newUser);
 
+            console.log(`new user registered: ${newUser.first_name} ${newUser.second_name} (${newUser.email})`);
+
             // generate token
             const token = jwtService.generateToken({ id: newUser.id, name: (newUser.first_name + ' ' + newUser.second_name), email: newUser.email });
             res.status(201).json({
@@ -144,20 +146,20 @@ class AuthController {
         }
     }
 
-    static async getUser(req: Request, res: Response): Promise<void>{
-        try{
-            if(!req.user){
+    static async getUser(req: Request, res: Response): Promise<void> {
+        try {
+            if (!req.user) {
                 res.status(401).json({
-                    success:false,
+                    success: false,
                     message: 'user not authenticated'
                 });
                 return;
             }
 
             const user = users.find(u => u.id === req.user?.userId);
-            if(!user){
+            if (!user) {
                 res.status(404).json({
-                    success:false,
+                    success: false,
                     message: 'user not found'
                 });
                 return;
@@ -185,9 +187,9 @@ class AuthController {
     }
 
     // logout user -> just sending confirmation for now
-    static async logout(req: Request, res: Response): Promise<void>{
+    static async logout(req: Request, res: Response): Promise<void> {
         try {
-            if(req.user){
+            if (req.user) {
                 console.log(`user ${req.user.userId} logged out`);
             }
 
@@ -196,7 +198,7 @@ class AuthController {
                 message: 'user logged out successfully'
             });
         }
-        catch(ex){
+        catch (ex) {
             res.status(500).json({
                 success: false,
                 message: 'internal server error'
@@ -206,7 +208,7 @@ class AuthController {
 
     // for testing
     static async getAllUsers(req: Request, res: Response): Promise<void> {
-        try{
+        try {
             const userList = users.map(u => {
                 return {
                     id: u.id,
@@ -220,7 +222,7 @@ class AuthController {
                 data: {
                     users: userList,
                     count: userList.length
-                }   
+                }
             });
         }
         catch (ex) {
@@ -231,3 +233,5 @@ class AuthController {
         }
     }
 }
+
+export { AuthController };

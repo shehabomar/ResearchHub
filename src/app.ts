@@ -4,6 +4,7 @@ import { config } from './config';
 import cors from 'cors';
 import jwt from 'jsonwebtoken';
 import { jwtService } from './utils/jwt';
+import { authRoutes } from './routes/routes';
 
 const app = express();
 
@@ -28,6 +29,8 @@ app.use((req, res, next) => {
 app.get('/', (req, res) => {
     res.send('hello from express');
 });
+
+app.use('/api/auth', authRoutes);
 
 app.post('/generate-token', (req, res) => {
     try {

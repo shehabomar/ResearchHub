@@ -35,13 +35,16 @@ const authenticateToken = async (req: Request, res: Response, next: NextFunction
         next();
     }
     catch (err) {
-        const msg = err instanceof Error? err.message : 'token verification failed';
+        const msg = err instanceof Error ? err.message : 'token verification failed';
         console.log(`auth failed: ${msg}`);
 
         res.status(403).json({
-            success:false,
+            success: false,
             msg,
             code: 'TOKEN_INVALID'
         });
     }
 }
+
+
+export { authenticateToken };
