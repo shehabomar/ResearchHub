@@ -33,7 +33,6 @@ class JWTService {
         const options: SignOptions = {
             expiresIn: this.expiresIn as any,
         };
-        console.log("typeof this.expiresIn", typeof options.expiresIn);
 
         return jwt.sign(payload, this.secret, options);
     }

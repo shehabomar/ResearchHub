@@ -35,7 +35,8 @@ class AuthController {
                 res.status(400).json({
                     success: false,
                     message: 'name, email, and password are required'
-                })
+                });
+                return;
             }
 
             // validate password
@@ -45,6 +46,7 @@ class AuthController {
                     message: "invalid password",
                     errors: PasswordService.validatePass(password).errors
                 });
+                return;
             }
 
             // check if user already exits
@@ -77,15 +79,155 @@ class AuthController {
                     newUser,
                     token
                 }
-            })
+            });
         }
         catch (ex) {
             res.status(500).json({
                 succes: false,
                 message: 'internal server error'
-            })
+            });
         }
     }
 
-    // static async login(req: Request, res: Response): 
+    static async login(req: Request, res: Response): Promise<void> {
+        try {
+            const { email, password }: LoginRequest = req.body;
+            if (!email || !password) {
+                res.status(400).json({
+                    success: false,
+                    message: 'email and password are required'
+                });
+                return;
+            }
+
+            // find user
+            const user = users.find(user => user.email.toLowerCase() === email.toLowerCase());
+            if (!user) {
+                res.status(401).json({
+                    success: false,
+                    message: 'user not found'
+                });
+                return;
+            }
+
+            const isValid = await PasswordService.comparePasswords(password, user.password)
+            if (!isValid) {
+                res.status(401).json({
+                    success: false,
+                    message: 'invalid password'
+                });
+                return;
+            }
+
+            const token = jwtService.generateToken({
+                id: user.id,
+                name: `${user.first_name} ${user.second_name}`,
+                email: user.email
+            });
+
+            res.status(200).json({
+                success: true,
+                message: 'user logged in successfully',
+                data: {
+                    user: {
+                        id: user.id,
+                        name: `${user.first_name} ${user.second_name}`,
+                        email: user.email,
+                        created_at: user.created_at
+                    },
+                    token
+                }
+            })
+        }
+        catch (ex) {
+
+        }
+    }
+
+    static async getUser(req: Request, res: Response): Promise<void>{
+        try{
+            if(!req.user){
+                res.status(401).json({
+                    success:false,
+                    message: 'user not authenticated'
+                });
+                return;
+            }
+
+            const user = users.find(u => u.id === req.user?.userId);
+            if(!user){
+                res.status(404).json({
+                    success:false,
+                    message: 'user not found'
+                });
+                return;
+            }
+
+            res.status(200).json({
+                success: true,
+                data: {
+                    user: {
+                        id: user.id,
+                        name: `${user.first_name} ${user.second_name}`,
+                        email: user.email,
+                        created_at: user.created_at
+                    }
+                }
+
+            });
+        }
+        catch (ex) {
+            res.status(500).json({
+                success: false,
+                message: 'internal server error'
+            });
+        }
+    }
+
+    // logout user -> just sending confirmation for now
+    static async logout(req: Request, res: Response): Promise<void>{
+        try {
+            if(req.user){
+                console.log(`user ${req.user.userId} logged out`);
+            }
+
+            res.status(200).json({
+                success: true,
+                message: 'user logged out successfully'
+            });
+        }
+        catch(ex){
+            res.status(500).json({
+                success: false,
+                message: 'internal server error'
+            });
+        }
+    }
+
+    // for testing
+    static async getAllUsers(req: Request, res: Response): Promise<void> {
+        try{
+            const userList = users.map(u => {
+                return {
+                    id: u.id,
+                    name: `${u.first_name} ${u.second_name}`,
+                    emial: u.email,
+                    created_at: u.created_at
+                }
+            });
+            res.status(200).json({
+                success: true,
+                data: {
+                    users: userList,
+                    count: userList.length
+                }   
+            });
+        }
+        catch (ex) {
+            res.status(500).json({
+                success: false,
+                message: 'internal server error'
+            });
+        }
+    }
 }
