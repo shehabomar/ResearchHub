@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { jwtService } from "../utils/jwt";
 import { PasswordService } from "../utils/password";
+import DatabaseService from "../db/db";
 
 interface LoginRequest {
     email: string;
@@ -40,7 +41,7 @@ class AuthController {
             }
 
             // validate password
-            if (!PasswordService.validatePass(password)) {
+            if (!PasswordService.validatePass(password).isVal) {
                 res.status(400).json({
                     success: false,
                     message: "invalid password",
@@ -50,8 +51,9 @@ class AuthController {
             }
 
             // check if user already exits
-            const existingUser = users.find(user => user.email.toLowerCase() === email.toLowerCase());
-            if (existingUser) {
+            const user_query = `SELECT id FROM users WHERE LOWER(email) = LOWER($1);`;
+            const existingUser = await DatabaseService.query(user_query, [email]);
+            if (existingUser.rows.length > 0) {
                 res.status(409).json({
                     success: false,
                     message: "user already exists"
@@ -61,20 +63,38 @@ class AuthController {
 
             // hash pass
             const hashed = await PasswordService.hashPassword(password);
-            const newUser: User = {
-                id: `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-                first_name: first_name.trim(),
-                second_name: second_name.trim(),
-                email: email,
-                password: hashed,
-                created_at: new Date()
-            }
-            users.push(newUser);
 
+            // using returning query to get user's id after insertion
+            const new_user_query = `
+                INSERT INTO users 
+                (first_name, second_name, email, password)
+                VALUES
+                ($1, $2, $3, $4)
+                RETURNING id, first_name, second_name, email, created_at;
+            `;
+
+            const result = await DatabaseService.query(
+                new_user_query,
+                [
+                    first_name.trim(),
+                    second_name.trim(),
+                    email.trim().toLowerCase(),
+                    hashed
+                ]
+            );
+
+            const newUser = result.rows[0] as User;
             console.log(`new user registered: ${newUser.first_name} ${newUser.second_name} (${newUser.email})`);
 
             // generate token
-            const token = jwtService.generateToken({ id: newUser.id, name: (newUser.first_name + ' ' + newUser.second_name), email: newUser.email });
+            const token = jwtService.generateToken(
+                {
+                    id: newUser.id.toString(),
+                    name: `${newUser.first_name} ${newUser.second_name}`,
+                    email: newUser.email
+                }
+            );
+
             res.status(201).json({
                 success: true,
                 data: {
@@ -84,6 +104,7 @@ class AuthController {
             });
         }
         catch (ex) {
+            console.log(`error during registeration: ${ex}`);
             res.status(500).json({
                 succes: false,
                 message: 'internal server error'
@@ -103,8 +124,14 @@ class AuthController {
             }
 
             // find user
-            const user = users.find(user => user.email.toLowerCase() === email.toLowerCase());
-            if (!user) {
+            const user_query = `
+                SELECT id, first_name, second_name, email, password, created_at 
+                FROM users 
+                WHERE LOWER(email) = LOWER($1);
+            `;
+            const result = await DatabaseService.query(user_query, [email]);
+
+            if (result.rows.length == 0) {
                 res.status(401).json({
                     success: false,
                     message: 'user not found'
@@ -112,7 +139,9 @@ class AuthController {
                 return;
             }
 
+            const user = result.rows[0] as User;
             const isValid = await PasswordService.comparePasswords(password, user.password)
+
             if (!isValid) {
                 res.status(401).json({
                     success: false,
@@ -122,7 +151,7 @@ class AuthController {
             }
 
             const token = jwtService.generateToken({
-                id: user.id,
+                id: user.id.toString(),
                 name: `${user.first_name} ${user.second_name}`,
                 email: user.email
             });
@@ -142,7 +171,11 @@ class AuthController {
             })
         }
         catch (ex) {
-
+            console.log(`error during login: ${ex}`);
+            res.status(500).json({
+                success: false,
+                message: 'internal server error'
+            });
         }
     }
 
@@ -156,14 +189,22 @@ class AuthController {
                 return;
             }
 
-            const user = users.find(u => u.id === req.user?.userId);
-            if (!user) {
+            const user_query = `
+                SELECT id, first_name, second_name, email, created_at
+                FROM users
+                WHERE id = $1;
+            `;
+            const result = await DatabaseService.query(user_query, [req.user.userId]);
+
+            if (result.rows.length == 0) {
                 res.status(404).json({
                     success: false,
                     message: 'user not found'
                 });
                 return;
             }
+
+            const user = result.rows[0] as User;
 
             res.status(200).json({
                 success: true,

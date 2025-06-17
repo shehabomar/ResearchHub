@@ -132,3 +132,5 @@ class DatabaseService {
         return this.pool.connect();
     }
 }
+
+export default DatabaseService;
