@@ -60,7 +60,12 @@ create table if not exists exploration_path (
 
 -- indexes
 create index if not exists idx_papers_title on papers using gin(to_tsvector('english', title));
+
 create index if not exists idx_exploration_path_session on exploration_path(session_id);
 create index if not exists idx_exploration_path_tree on exploration_path(session_id, parent_path_id);
 create index if not exists idx_exploration_path_paper on exploration_path(paper_id);
+
 create index if not exists idx_sessions_user on exploration_session(user_id);
+
+create index if not exists idx_user_id on users(id);
+create index if not exists idx_user_email on users(email);
