@@ -2,9 +2,11 @@ import express from 'express';
 
 import { config } from './config';
 import cors from 'cors';
-import jwt from 'jsonwebtoken';
+import helmet from 'helmet';
+
 import { jwtService } from './utils/jwt';
 import { authRoutes } from './routes/routes';
+import DatabaseService from './db/db';
 
 const app = express();
 
@@ -17,6 +19,7 @@ app.use(cors({
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true
 }));
+app.use(helmet());
 
 // logger
 app.use((req, res, next) => {
@@ -64,8 +67,25 @@ app.get('/proteceted', (req, res) => {
     res.status(200).send({ data: { message: 'Protected route accessed', token } });
 });
 
-app.listen(config.port, () => {
-    console.log(`server is running on port ${config.port}`);
-});
+async function start() {
+    try {
+        console.log("starting server...");
+        await DatabaseService.initialize();
+
+        app.listen(config.port, () => {
+            console.log(`server is running on port ${config.port}`);
+        });
+
+    }
+    catch (ex) {
+        console.error("Error starting server:", ex);
+        process.exit(1);
+    }
+}
+
+
+if (require.main === module) {
+    start();
+}
 
 export { app };
