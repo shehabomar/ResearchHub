@@ -18,7 +18,8 @@ interface Paper {
     url?: string;
     references?: string[];
     citations?: string[];
-    apiSource?: 'semantic_scholar' | 'openalex';
+    apiSource: 'semantic_scholar' | 'openalex';
+    externalIds?: Record<string, string>;
 }
 
 interface SearchParams {
