@@ -2,7 +2,7 @@ import DatabaseService from './db';
 import fs from 'fs';
 import path from 'path';
 
-async function setupDatabase() {
+const setupDatabase = async (): Promise<void> => {
     try {
         await DatabaseService.initialize();
         const schemaPath = path.join(__dirname, 'schema.sql');
@@ -16,7 +16,7 @@ async function setupDatabase() {
     }
 }
 
-async function addBasicData() {
+const addBasicData = async (): Promise<void> => {
     try {
         const existingUser = await DatabaseService.query(
             'SELECT id FROM users WHERE email = $1',
@@ -83,7 +83,7 @@ async function addBasicData() {
     }
 }
 
-async function verifySetup() {
+const verifySetup = async (): Promise<void> => {
     try {
         const tables = await DatabaseService.query(`
             SELECT table_name 
@@ -100,7 +100,7 @@ async function verifySetup() {
     }
 }
 
-async function main() {
+const main = async (): Promise<void> => {
     try {
         await setupDatabase();
         await verifySetup();

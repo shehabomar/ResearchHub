@@ -27,7 +27,7 @@ interface PaperSearchFilters {
 
 class PaperRepository {
 
-    private transformToDbPaper(row: any): DbPaper {
+    private transformToDbPaper = (row: any): DbPaper => {
         return {
             id: row.id,
             title: row.title,
@@ -42,7 +42,7 @@ class PaperRepository {
         };
     }
 
-    async savePaper(paper: Paper): Promise<DbPaper> {
+    savePaper = async (paper: Paper): Promise<DbPaper> => {
         try {
             const query = `
                 insert into papers (id, title, abstract, authors, publication_date, citation_count, api_source, external_ids, meta_data)
@@ -88,7 +88,7 @@ class PaperRepository {
         }
     }
 
-    async savePapers(papers: Paper[]): Promise<DbPaper[]> {
+    savePapers = async (papers: Paper[]): Promise<DbPaper[]> => {
         try {
             const queries = papers.map(paper => ({
                 text: `
@@ -137,13 +137,13 @@ class PaperRepository {
         }
     }
 
-    async getPaperById(id: string): Promise<DbPaper | null> {
+    getPaperById = async (id: string): Promise<DbPaper | null> => {
         try {
             const query = `select * from papers where id = $1`;
             const result = await DatabaseService.query(query, [id]);
             const paper = result.rows[0];
 
-            if (paper.length === 0) {
+            if (!paper || result.rows.length === 0) {
                 return null;
             }
 
@@ -156,7 +156,7 @@ class PaperRepository {
         }
     }
 
-    async getPapersByAuthor(authorName: string, limit: number = 10): Promise<DbPaper[] | null> {
+    getPapersByAuthor = async (authorName: string, limit: number = 10): Promise<DbPaper[] | null> => {
         try {
             const query = `
             select * 
@@ -176,7 +176,7 @@ class PaperRepository {
         }
     }
 
-    async getRecentPapers(limit: number = 10): Promise<DbPaper[]> {
+    getRecentPapers = async (limit: number = 10): Promise<DbPaper[]> => {
         try {
             const query = `
                 select * 
@@ -196,7 +196,7 @@ class PaperRepository {
         }
     }
 
-    async paperExists(id: string): Promise<boolean> {
+    paperExists = async (id: string): Promise<boolean> => {
         try {
             const query = 'SELECT 1 FROM papers WHERE id = $1 LIMIT 1';
             const result = await DatabaseService.query(query, [id]);
@@ -207,8 +207,7 @@ class PaperRepository {
         }
     }
 
-
-    // async searchPapers(searchParams: PaperSearchFilters): Promise<{ papers: DbPaper[]; total: number }> {
+    // searchPapers = async (searchParams: PaperSearchFilters): Promise<{ papers: DbPaper[]; total: number }> => {
     //     try {
 
     //     }

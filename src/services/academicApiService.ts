@@ -47,7 +47,7 @@ class SemanticScholarAPI {
         wdMs: 5 * 60 * 1000
     }
 
-    private async rateLimitCheck(): Promise<void> {
+    private rateLimitCheck = async (): Promise<void> => {
         const now = Date.now();
 
         if (now - this.rateLimit.lastReset > this.rateLimit.wdMs) {
@@ -66,7 +66,7 @@ class SemanticScholarAPI {
         this.rateLimit.requests++;
     }
 
-    private transformPaper(apiPaper: any): Paper {
+    private transformPaper = (apiPaper: any): Paper => {
         return {
             id: apiPaper.paperId || apiPaper.id,
             title: apiPaper.title || '',
@@ -88,7 +88,7 @@ class SemanticScholarAPI {
         }
     }
 
-    async searchPapers(params: SearchParams): Promise<SearchResult> {
+    searchPapers = async (params: SearchParams): Promise<SearchResult> => {
         try {
             await this.rateLimitCheck();
 
@@ -120,7 +120,6 @@ class SemanticScholarAPI {
                 }
             });
 
-
             const data = response.data;
             const papers = (data.data || []).map((paper: any) => this.transformPaper(paper));
 
@@ -139,7 +138,7 @@ class SemanticScholarAPI {
         }
     }
 
-    async getPaperById(paperId: string): Promise<Paper> {
+    getPaperById = async (paperId: string): Promise<Paper> => {
         try {
             await this.rateLimitCheck();
 
@@ -165,7 +164,7 @@ class SemanticScholarAPI {
         }
     }
 
-    async getPapersByAuthor(authorId: string, limit: number = 10): Promise<Paper[]> {
+    getPapersByAuthor = async (authorId: string, limit: number = 10): Promise<Paper[]> => {
         try {
             await this.rateLimitCheck();
 
@@ -196,7 +195,6 @@ class SemanticScholarAPI {
 }
 
 const semanticScholarAPI = new SemanticScholarAPI();
-
 
 export {
     SemanticScholarAPI,

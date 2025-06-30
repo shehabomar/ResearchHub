@@ -4,15 +4,15 @@ import { config } from '../config';
 class PasswordService {
     private static readonly salt_rounds: number = parseInt(config.bcrypt_rounds);
 
-    static async hashPassword(password: string): Promise<string> {
+    static hashPassword = async (password: string): Promise<string> => {
         return bcrypt.hash(password, this.salt_rounds);
     }
 
-    static async comparePasswords(pass: string, hash: string): Promise<boolean> {
+    static comparePasswords = async (pass: string, hash: string): Promise<boolean> => {
         return bcrypt.compare(pass, hash);
     }
 
-    static validatePass(pass: string): { isVal: boolean, errors: string[] } {
+    static validatePass = (pass: string): { isVal: boolean, errors: string[] } => {
         const errors: string[] = [];
 
         if (!pass || pass.length < 8) {

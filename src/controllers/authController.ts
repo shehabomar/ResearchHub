@@ -27,7 +27,7 @@ interface User {
 const users: User[] = [];
 
 class AuthController {
-    static async register(req: Request, res: Response): Promise<void> {
+    static register = async (req: Request, res: Response): Promise<void> => {
         try {
             const { first_name, second_name, email, password }: RegisterRequest = req.body;
 
@@ -112,7 +112,7 @@ class AuthController {
         }
     }
 
-    static async login(req: Request, res: Response): Promise<void> {
+    static login = async (req: Request, res: Response): Promise<void> => {
         try {
             const { email, password }: LoginRequest = req.body;
             if (!email || !password) {
@@ -179,7 +179,7 @@ class AuthController {
         }
     }
 
-    static async getUser(req: Request, res: Response): Promise<void> {
+    static getUser = async (req: Request, res: Response): Promise<void> => {
         try {
             if (!req.user) {
                 res.status(401).json({
@@ -228,7 +228,7 @@ class AuthController {
     }
 
     // logout user -> just sending confirmation for now
-    static async logout(req: Request, res: Response): Promise<void> {
+    static logout = async (req: Request, res: Response): Promise<void> => {
         try {
             if (req.user) {
                 console.log(`user ${req.user.userId} logged out`);
@@ -248,7 +248,7 @@ class AuthController {
     }
 
     // for testing
-    static async getAllUsers(req: Request, res: Response): Promise<void> {
+    static getAllUsers = async (req: Request, res: Response): Promise<void> => {
         try {
             const userList = users.map(u => {
                 return {

@@ -13,7 +13,7 @@ class DatabaseService {
     private static pool: Pool | null = null;
     private static config: DbConfig;
 
-    private static initializeDB(): DbConfig {
+    private static initializeDB = (): DbConfig => {
         return {
             host: config.db_host,
             port: parseInt(config.db_port),
@@ -23,8 +23,7 @@ class DatabaseService {
         };
     }
 
-    static async initialize(): Promise<void> {
-
+    static initialize = async (): Promise<void> => {
         if (this.pool) {
             console.log("db already connected");
             return;
@@ -53,8 +52,7 @@ class DatabaseService {
         }
     }
 
-    static async query(text: string, params?: any[]): Promise<QueryResult> {
-
+    static query = async (text: string, params?: any[]): Promise<QueryResult> => {
         if (!this.pool) {
             throw new Error("db not initialized");
         }
@@ -72,8 +70,7 @@ class DatabaseService {
         }
     }
 
-    static async transaction(queries: Array<{ text: string, params?: any[] }>): Promise<QueryResult[]> {
-
+    static transaction = async (queries: Array<{ text: string, params?: any[] }>): Promise<QueryResult[]> => {
         if (!this.pool) {
             throw new Error("db not initialized");
         }
@@ -105,7 +102,7 @@ class DatabaseService {
         }
     }
 
-    static async close(): Promise<void> {
+    static close = async (): Promise<void> => {
         if (!this.pool) {
             console.log("db not initialized, nothing to close");
             return;
@@ -124,12 +121,12 @@ class DatabaseService {
         }
     }
 
-    static isConnected(): boolean {
+    static isConnected = (): boolean => {
         return this.pool !== null;
     }
 
     // get client
-    static async getClient(): Promise<PoolClient> {
+    static getClient = async (): Promise<PoolClient> => {
         if (!this.pool) {
             throw new Error("db not initialized");
         }

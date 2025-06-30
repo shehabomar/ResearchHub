@@ -24,7 +24,7 @@ class JWTService {
         this.expiresIn = config.jwt_expire_in || '24h';
     }
 
-    generateToken(user: AuthedUser): string {
+    generateToken = (user: AuthedUser): string => {
         const payload: Omit<JWTPayload, 'iat' | 'exp'> = {
             userId: user.id,
             email: user.email
@@ -37,7 +37,7 @@ class JWTService {
         return jwt.sign(payload, this.secret, options);
     }
 
-    verifyToken(token: string): JWTPayload {
+    verifyToken = (token: string): JWTPayload => {
         try {
             return jwt.verify(token, this.secret) as JWTPayload;
         }
@@ -52,7 +52,7 @@ class JWTService {
         }
     }
 
-    extractTokenFromAuthHeader(authHeader: string): string | null {
+    extractTokenFromAuthHeader = (authHeader: string): string | null => {
         if (!authHeader) return null;
 
         const parts = authHeader.split(' ')[1];

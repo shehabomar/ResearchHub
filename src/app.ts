@@ -67,7 +67,7 @@ app.get('/proteceted', (req, res) => {
     res.status(200).send({ data: { message: 'Protected route accessed', token } });
 });
 
-async function start() {
+const start = async (): Promise<void> => {
     try {
         console.log("starting server...");
         await DatabaseService.initialize();
@@ -82,7 +82,6 @@ async function start() {
         process.exit(1);
     }
 }
-
 
 if (require.main === module) {
     start();

@@ -15,7 +15,7 @@ interface Config {
     bcrypt_rounds: string;
 }
 
-function getEnvVar(name: string): string {
+const getEnvVar = (name: string): string => {
     const value = process.env[name] as string;
     return value;
 }
@@ -32,4 +32,4 @@ export const config: Config = {
     refresh_token_secret: getEnvVar('REFRESH_TOKEN_SECRET'),
     jwt_expire_in: getEnvVar('JWT_EXPIRE_IN'),
     bcrypt_rounds: getEnvVar('BCRYPT_ROUNDS'),
-}  
+}
