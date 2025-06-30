@@ -16,17 +16,16 @@ interface DbPaper {
 
 interface PaperSearchFilters {
     query?: string;
-    yearStart?: string;
-    yearEnd?: string;
-    venue?: string;
+    author?: string;
+    yearStart?: number;
+    yearEnd?: number;
     minCitations?: number;
-    fieldsOfStudy?: string[];
+    venue?: string;
     limit?: number;
     offset?: number;
 }
 
 class PaperRepository {
-
     private transformToDbPaper = (row: any): DbPaper => {
         return {
             id: row.id,
@@ -207,14 +206,141 @@ class PaperRepository {
         }
     }
 
-    // searchPapers = async (searchParams: PaperSearchFilters): Promise<{ papers: DbPaper[]; total: number }> => {
-    //     try {
+    getPaperStats = async (): Promise<{
+        totalPapers: number;
+        avgCitations: number;
+        topVenues: Array<{ venue: string; count: number }>;
+        recentCount: number;
+    }> => {
 
-    //     }
-    //     catch (ex) {
+        try {
+            const queries = [
+                'select count(*) as total from papers;',
+                'select avg(citation_count) as avg_citatios from papers',
+                `select meta_data->>'venue' as venue, count(*) as count 
+                 from papers 
+                 where meta_data->>'venue' is not null
+                 group by meta_data->>'venue' 
+                 order by count DESC 
+                 limit 5`,
+                `select count(*) as recent_count 
+                 from papers 
+                 where created_at >= now() - interval '7 days'`
+            ];
 
-    //     }
-    // }
+            const [totalResult, avgResult, venuesResult, recentResult] = await Promise.all(
+                queries.map(query => DatabaseService.query(query))
+            );
+
+            return {
+                totalPapers: parseInt(totalResult.rows[0].total),
+                avgCitations: parseInt(avgResult.rows[0].avg_citatios) || 0,
+                topVenues: venuesResult.rows.map(row => ({
+                    venue: row.venue,
+                    count: parseInt(row.count)
+                })),
+                recentCount: parseInt(recentResult.rows[0].recent_count)
+            };
+        }
+        catch (ex) {
+            console.log("error getting paper stats", ex);
+            throw new Error('failed to get stats');
+        }
+    }
+
+    searchPapers = async (filters: PaperSearchFilters): Promise<{ papers: DbPaper[]; total: number }> => {
+        try {
+            let whereConditions: string[] = [];
+            let paramsCount = 0;
+            let queryParams: any[] = [];
+
+            if (filters.query) {
+                paramsCount++;
+                whereConditions.push(`(
+                    to_tsvector('english', title) @@ plainto_tsquery('english', $${paramsCount})
+                    or 
+                    to_tsvector('english', abstract) @@ plainto_tsquery('english', $${paramsCount})
+                )`);
+                queryParams.push(filters.query);
+            }
+
+            if (filters.author) {
+                paramsCount++;
+                whereConditions.push(`authors::text ilike $${paramsCount}`);
+                queryParams.push(`%${filters.author}%`);
+            }
+
+            if (filters.yearStart) {
+                paramsCount++;
+                whereConditions.push(`
+                    extract(year from publication_date::date) >= $${paramsCount}
+                `);
+                queryParams.push(filters.yearStart);
+            }
+
+            if (filters.yearEnd) {
+                paramsCount++;
+                whereConditions.push(`
+                    extract(year from publication_date::date) <= $${paramsCount}
+                `);
+                queryParams.push(filters.yearEnd);
+            }
+
+            if (filters.minCitations) {
+                paramsCount++;
+                whereConditions.push(`
+                    citation_count >= $${paramsCount}
+                `);
+                queryParams.push(filters.minCitations);
+            }
+
+            if (filters.venue) {
+                paramsCount++;
+                whereConditions.push(`
+                    meta->>'venue' ilike $${paramsCount}
+                `);
+                queryParams.push(`%${filters.venue}%`);
+            }
+
+            const queryWhere = whereConditions.length > 0 ? `where ${whereConditions.join(' and ')}` : '';
+
+            const countQuery = `select count(*) as total from papers ${queryWhere}`;
+
+            const limit = filters.limit || 10;
+            const offset = filters.offset || 0;
+
+
+            paramsCount++;
+            const limitParam = paramsCount;
+            paramsCount++;
+            const offsetParam = paramsCount;
+
+            const query = `
+                select * 
+                from papers
+                ${whereConditions}
+                order by citation_count desc, created_at desc
+                limit $${limitParam}
+                offset $${offsetParam};
+            `;
+
+            const [count, data] = await Promise.all([
+                DatabaseService.query(countQuery, [queryParams]),
+                DatabaseService.query(query, [...queryParams, limit, offset])
+            ]);
+
+            const total = parseInt(count.rows[0].total);
+            const papers = data.rows.map(row => this.transformToDbPaper(row));
+
+            console.log(`found ${total} papers`);
+
+            return { papers, total };
+        }
+        catch (ex) {
+            console.log("error searching a query: ", ex);
+            throw new Error('failed searching a query');
+        }
+    }
 }
 
 const paperRepo = new PaperRepository();
