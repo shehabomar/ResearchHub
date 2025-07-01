@@ -192,6 +192,13 @@ class SemanticScholarAPI {
             throw new Error("Failed to fetch papers by author from Semantic Scholar API");
         }
     }
+
+    getRateLimitStatus = (): { remaining: number; resetTime: Date } => {
+        const now = Date.now();
+        const remaining = Math.max(0, this.rateLimit.maxRequests - this.rateLimit.requests);
+        const resetTime = new Date(this.rateLimit.lastReset + this.rateLimit.wdMs);
+        return { remaining, resetTime };
+    }
 }
 
 const semanticScholarAPI = new SemanticScholarAPI();
