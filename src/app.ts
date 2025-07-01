@@ -5,7 +5,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 
 import { jwtService } from './utils/jwt';
-import { authRoutes } from './routes/routes';
+import { authRouter, paperRouter } from './routes/routes';
 import DatabaseService from './db/db';
 
 const app = express();
@@ -33,7 +33,9 @@ app.get('/', (req, res) => {
     res.send('hello from express');
 });
 
-app.use('/api/auth', authRoutes);
+// mounting routes
+app.use('/api/auth', authRouter);
+app.use('/api/papers', paperRouter);
 
 app.post('/generate-token', (req, res) => {
     try {

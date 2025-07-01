@@ -39,7 +39,7 @@ interface SearchResult {
 }
 
 class SemanticScholarAPI {
-    private readonly baseUrl = 'https://api.semanticscholar.org/graph/v1/';
+    private readonly baseUrl = 'https://api.semanticscholar.org/graph/v1';
     private readonly rateLimit = {
         requests: 0,
         lastReset: Date.now(),
@@ -92,7 +92,7 @@ class SemanticScholarAPI {
         try {
             await this.rateLimitCheck();
 
-            const search = `${this.baseUrl}/search/papers`;
+            const search = `${this.baseUrl}/paper/search`;
             const queryParams: any = {
                 query: params.query,
                 limit: params.limit || 10,
@@ -112,13 +112,28 @@ class SemanticScholarAPI {
                 queryParams.fieldsOfStudy = params.fieldsOfStudy.join(',');
             }
 
-            const response: AxiosResponse<any> = await axios.get(search, {
-                params: queryParams,
-                timeout: 30000,
-                headers: {
-                    'User-Agent': 'Academic-Discovery-Platform/1.0'
-                }
-            });
+            let response: AxiosResponse<any>;
+
+            try {
+                response = await axios.get(search, {
+                    params: queryParams,
+                    timeout: 30000,
+                    headers: {
+                        'User-Agent': 'Academic-Discovery-Platform/1.0'
+                    }
+                });
+            } catch (error) {
+                console.log('regular search failed, trying bulk search...');
+                const bulkSearchUrl = `${this.baseUrl}/paper/search/bulk`;
+
+                response = await axios.get(bulkSearchUrl, {
+                    params: queryParams,
+                    timeout: 30000,
+                    headers: {
+                        'User-Agent': 'Academic-Discovery-Platform/1.0'
+                    }
+                });
+            }
 
             const data = response.data;
             const papers = (data.data || []).map((paper: any) => this.transformPaper(paper));

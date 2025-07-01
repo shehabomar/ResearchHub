@@ -318,7 +318,7 @@ class PaperRepository {
             const query = `
                 select * 
                 from papers
-                ${whereConditions}
+                ${queryWhere}
                 order by citation_count desc, created_at desc
                 limit $${limitParam}
                 offset $${offsetParam};

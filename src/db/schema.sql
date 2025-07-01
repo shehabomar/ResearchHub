@@ -4,7 +4,7 @@ create table if not exists users (
     first_name varchar(100),
     second_name varchar(100),
     email varchar(255) unique not null,
-    password_hash varchar(255) not null,
+    password varchar(255) not null,
     created_at timestamp with time zone default now()
 );
 
@@ -12,7 +12,7 @@ create table if not exists users (
 create table if not exists papers (
     id varchar(255) primary key,
     title text not null,
-    abstract text not null,
+    abstract text,
     authors jsonb,
     publication_date date,
     citation_count integer default 0,
@@ -60,6 +60,7 @@ create table if not exists exploration_path (
 
 -- indexes
 create index if not exists idx_papers_title on papers using gin(to_tsvector('english', title));
+create index if not exists idx_papers_abstract on papers using gin(to_tsvector('english', abstract1`));
 
 create index if not exists idx_exploration_path_session on exploration_path(session_id);
 create index if not exists idx_exploration_path_tree on exploration_path(session_id, parent_path_id);

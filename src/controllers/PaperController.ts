@@ -94,7 +94,6 @@ class PaperController {
                 }
                 catch (ex) {
                     console.log('error saving papers fetched from api to db', ex);
-                    throw new Error('failed to save to db from api');
                 }
             }
 
@@ -332,3 +331,5 @@ class PaperController {
         }
     }
 }
+
+export { PaperController };
