@@ -51,7 +51,66 @@ class ExplorationRepository {
         };
     }
 
-    createSessions = async (userId: number, name: string, description?: string, meta_data?: Record<string, any>): Promise<ExplorationSession> => {
+    private transformDbPath = (row: any): ExplorationPath => {
+        return {
+            id: row.id,
+            session_id: row.session_id,
+            parent_path_id: row.parent_path_id,
+            paper_id: row.paper_id,
+            depth: row.depth,
+            exploration_type: row.exploration_type,
+            path_meta_data: typeof row.meta_data === 'string' ? JSON.parse(row.meta_data) : row.meta_data,
+            created_at: row.created_at
+        };
+    }
+
+    private transformPathWithPaper = (row: any): EnrichedExplorationPath => {
+        return {
+            ...this.transformDbPath(row),
+            paper_title: row.paper_title,
+            paper_authors: typeof row.paper_authors === 'string' ? JSON.parse(row.paper_authors) : row.paper_authors,
+            citation_count: row.citation_count
+        };
+    }
+
+    private buildTree = (paths: EnrichedExplorationPath[]): EnrichedExplorationPath[] => {
+        const pathMap = new Map<number, EnrichedExplorationPath>();
+        const rootPath: EnrichedExplorationPath[] = [];
+
+        paths.forEach(path => {
+            path.children = [];
+            pathMap.set(path.id, path);
+        });
+
+        paths.forEach(path => {
+            if (path.parent_path_id) {
+                const parent = pathMap.get(path.parent_path_id);
+                if (parent) {
+                    parent.children?.push(path);
+                }
+            } else {
+                rootPath.push(path);
+            }
+        });
+        return rootPath;
+    }
+
+    private touchSession = async (sessionId: number): Promise<void> => {
+        try {
+            const query = `update exploration_session
+                set updated_at = now()
+                where id = $1
+                returning *;
+            `;
+            await DatabaseService.query(query, [sessionId]);
+        }
+        catch (ex) {
+            console.log("error while trying to update session: ", ex);
+            throw new Error("failed updating update_at in exlploration session");
+        }
+    }
+
+    createSession = async (userId: number, name: string, description?: string, meta_data?: Record<string, any>): Promise<ExplorationSession> => {
 
         try {
             const query = `
@@ -135,7 +194,7 @@ class ExplorationRepository {
                 select * from exploration_session
                 where id = $1 and (user_id = $2 or is_shared = true);
             `;
-            const result = await DatabaseService(query, [sessionId, userId]);
+            const result = await DatabaseService.query(query, [sessionId, userId]);
             if (result.rows.length == 0) {
                 return null;
             }
@@ -204,5 +263,111 @@ class ExplorationRepository {
         }
     }
 
+    // exploration operations
+    addPaperToPath = async (sessionId: number, paperId: string, exploration_type: 'search' | 'citation' | 'reference' | 'author' | 'similar', parentPathId?: number, meta_data?: Record<string, any>): Promise<ExplorationPath> => {
+        try {
+            let depth = 0;
+            if (parentPathId) {
+                const parentQuery = `select depth from exploration_path where id = $1`;
+                const results = await DatabaseService.query(parentQuery, [parentPathId]);
 
+                if (results.rows.length == 0) {
+                    throw new Error("parent path not found");
+                }
+
+                depth = results.rows[0].depth + 1;
+            }
+
+            const query = `
+                insert into exploration_path(session_id, parent_path_id, paper_id, depth, exploration_type, path_meta_data)
+                values ($1, $2, $3, $4, $5, $6)
+                returning *;
+            `;
+
+            const values = [
+                sessionId,
+                parentPathId,
+                paperId,
+                depth,
+                exploration_type,
+                JSON.stringify(meta_data || {})
+            ];
+
+            const results = await DatabaseService.query(query, values);
+            const data = this.transformDbPath(results.rows[0]);
+            await this.touchSession(data.session_id);
+
+            return data;
+        }
+        catch (ex) {
+            console.log("error adding paper to path", ex);
+            throw new Error("failed adding paper to path");
+        }
+    }
+
+    getSessionTree = async (sessionId: number): Promise<EnrichedExplorationPath[]> => {
+        try {
+            const query = `
+                select ep.*,
+                       p.title as paper_title,
+                       p.authors as paper_authors,
+                       p.citation_count
+                from exploration_path ep
+                left join papers p
+                on ep.paper_id = p.id
+                where ep.session_id = $1
+                order by ep.created_at asc
+            `;
+
+            const results = await DatabaseService.query(query, [sessionId]);
+            const paths = results.rows.map(row => this.transformPathWithPaper(row));
+            const tree = this.buildTree(paths);
+            return tree;
+        }
+        catch (ex) {
+            console.log("error building the tree structure: ", ex);
+            throw new Error("failed building the tree");
+        }
+    }
+
+    getBreadCrumbPath = async (pathId: number): Promise<EnrichedExplorationPath[]> => {
+        try {
+            const query = `
+                with recursive path_hierarchy as (
+                    -- base case
+                    select ep.*, p.title as paper_title, p.authors as paper_authors, p.citation_count, 0 as level
+                    from exploration_path ep
+                    left join papers p on ep.paper_id = p.id
+                    where ep.id = $1
+
+                    union all
+
+                    -- recursion
+                    select ep.*, p.title as paper_title, p.authors as paper_authors, p.citation_count, ph.level+1
+                    from exploration_path ep
+                    left join papers p
+                    on ep.paper_id = p.id
+                    join
+                    path_hierarchy ph 
+                    on ep.id = ph.parent_path_id
+                )
+
+                select * from path_hierarchy
+                order by level desc
+            `;
+            const results = await DatabaseService.query(query, [pathId]);
+            const breadcrumbs = results.rows.map(row => this.transformPathWithPaper(row));
+            return breadcrumbs;
+        }
+        catch (ex) {
+            console.error('error building breadcrumbs:', ex);
+            throw new Error(`failed to build breadcrumbs: ${ex instanceof Error ? ex.message : 'unknown error'}`);
+        }
+    }
+}
+
+
+const explorationRepo = new ExplorationRepository();
+export {
+    explorationRepo
 }

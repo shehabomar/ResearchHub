@@ -31,7 +31,7 @@ const addBasicData = async (): Promise<void> => {
         const hashedPassword = '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi';
 
         const insertUserQuery = `
-            INSERT INTO users (first_name, second_name, email, password_hash) 
+            INSERT INTO users (first_name, second_name, email, password) 
             VALUES ($1, $2, $3, $4) 
             RETURNING id, email, first_name, second_name, created_at
         `;

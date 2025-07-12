@@ -7,6 +7,7 @@
     "dev": "nodemon src/app.ts",
     "build": "tsc",
     "db:setup": "npm run dev",
+    "test:exploration": "ts-node src/testing/test_exploration_repo.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
