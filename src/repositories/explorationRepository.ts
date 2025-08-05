@@ -369,5 +369,9 @@ class ExplorationRepository {
 
 const explorationRepo = new ExplorationRepository();
 export {
-    explorationRepo
+    explorationRepo,
+    ExplorationSession,
+    ExplorationPath,
+    EnrichedExplorationPath,
+    ExplorationFilters
 }

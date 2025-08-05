@@ -3,14 +3,14 @@ import { config } from '../config';
 import { Response } from 'express';
 
 interface JWTPayload {
-    userId: string;
+    userId: number;
     email: string;
     iat?: number;
     exp?: number;
 }
 
 interface AuthedUser {
-    id: string;
+    id: number;
     email: string;
     name: string;
 }

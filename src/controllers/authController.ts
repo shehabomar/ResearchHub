@@ -16,7 +16,7 @@ interface RegisterRequest {
 }
 
 interface User {
-    id: string;
+    id: number;
     email: string;
     first_name: string;
     second_name: string;
@@ -89,7 +89,7 @@ class AuthController {
             // generate token
             const token = jwtService.generateToken(
                 {
-                    id: newUser.id.toString(),
+                    id: newUser.id,
                     name: `${newUser.first_name} ${newUser.second_name}`,
                     email: newUser.email
                 }
@@ -106,7 +106,7 @@ class AuthController {
         catch (ex) {
             console.log(`error during registeration: ${ex}`);
             res.status(500).json({
-                succes: false,
+                success: false,
                 message: 'internal server error'
             });
         }
@@ -151,7 +151,7 @@ class AuthController {
             }
 
             const token = jwtService.generateToken({
-                id: user.id.toString(),
+                id: user.id,
                 name: `${user.first_name} ${user.second_name}`,
                 email: user.email
             });
@@ -254,7 +254,7 @@ class AuthController {
                 return {
                     id: u.id,
                     name: `${u.first_name} ${u.second_name}`,
-                    emial: u.email,
+                    email: u.email,
                     created_at: u.created_at
                 }
             });
