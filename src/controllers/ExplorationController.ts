@@ -1,3 +1,4 @@
+import DatabaseService from "../db/db";
 import { ExplorationFilters, ExplorationPath, EnrichedExplorationPath, ExplorationSession, explorationRepo } from "../repositories/explorationRepository";
 import { Request, Response } from "express";
 
@@ -10,8 +11,8 @@ interface CreateSessionRequest {
 interface UpdateSessionRequest {
     name?: string;
     description?: string;
-    isShared?: boolean;
     meta_data?: Record<string, any>
+    isShared?: boolean;
 }
 
 interface AddPaperRequest {
@@ -182,6 +183,104 @@ class ExplorationController {
     }
 
     // TODO 
+    // not tested yet
+    static updateSession = async (req: Request, res: Response): Promise<void> => {
+        try {
+            const userId = req.user?.userId;
+            if (!userId) {
+                res.status(401).json({
+                    success: false,
+                    message: "Authentication required"
+                });
+                return;
+            }
+
+            const sessionId = parseInt(req.params.id);
+            if (isNaN(sessionId)) {
+                res.status(400).json({
+                    success: false,
+                    message: "session id not valid"
+                });
+                return;
+            }
+
+            // get updates values
+            const updatedSession: UpdateSessionRequest = req.body;
+
+
+            // validate values
+            if (!updatedSession.name || updatedSession.name.trim().length === 0) {
+                res.status(400).json({
+                    success: false,
+                    message: "name is required"
+                });
+                return;
+            }
+
+            if (updatedSession.name.trim().length > 255) {
+                res.status(400).json({
+                    success: false,
+                    message: "name of session exceeded 255 chars"
+                });
+                return;
+            }
+
+
+            // update in db
+            const session = await explorationRepo.updateSession(sessionId, userId, {
+                name: updatedSession.name,
+                description: updatedSession.description,
+                meta_data: updatedSession.meta_data,
+                isShared: updatedSession.isShared ?? false
+            });
+
+            // send successful status
+            console.log(`updated session: ${sessionId}`)
+            res.status(200).json({
+                success: true,
+                data: {
+                    session,
+                }
+            });
+        }
+        catch (ex) {
+            console.log('error trying to update session');
+            res.status(500).json({
+                success: false,
+                message: "failed to update session",
+                error: ex instanceof Error ? ex.message : 'unknown error'
+            })
+        }
+    }
+
+    static addPaperToPath = async (req: Request, res: Response): Promise<void> => {
+        try {
+            const sessionId = parseInt(req.params.id);
+            if (!sessionId) {
+                res.status(401).json({
+                    success: false,
+                    message: "session id is not valid"
+                });
+                return;
+            }
+
+            const paperDetails: AddPaperRequest = req.body;
+            const values = await explorationRepo.addPaperToPath(sessionId, paperDetails.paperId, paperDetails.exploration_type, paperDetails.parentPathId, paperDetails.meta_data);
+
+            res.status(200).json({
+                success: true,
+                data: values
+            });
+        }
+        catch (ex) {
+            console.log('error when trying to add a paper to path');
+            res.status(500).json({
+                success: false,
+                message: 'failed to add paper to path', 
+                error: ex instanceof Error ? ex.message : 'unknown error'
+            })
+        }
+    }
 }
 
 export {
