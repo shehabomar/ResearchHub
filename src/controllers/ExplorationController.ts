@@ -182,8 +182,6 @@ class ExplorationController {
         }
     }
 
-    // TODO 
-    // not tested yet
     static updateSession = async (req: Request, res: Response): Promise<void> => {
         try {
             const userId = req.user?.userId;
@@ -276,9 +274,61 @@ class ExplorationController {
             console.log('error when trying to add a paper to path');
             res.status(500).json({
                 success: false,
-                message: 'failed to add paper to path', 
+                message: 'failed to add paper to path',
                 error: ex instanceof Error ? ex.message : 'unknown error'
             })
+        }
+    }
+
+    static getSessionTree = async (req: Request, res: Response): Promise<void> => {
+        try {
+            const sessionId = parseInt(req.params.id);
+            if (!sessionId) {
+                res.status(401).json({
+                    success: false,
+                    message: "session id is not valid"
+                });
+                return;
+            }
+            // check the type of sessionTree
+            const sessionTree = await explorationRepo.getSessionTree(sessionId);
+            res.status(200).json({
+                success: true,
+                data: sessionTree
+            });
+        } catch (ex) {
+            console.log("error when trying to get session tree");
+            res.status(500).json({
+                success: false,
+                message: 'failed to get session tree',
+                error: ex instanceof Error ? ex.message : 'unkown error'
+            });
+        }
+    }
+    
+    static getBreadCrumbPath = async(req: Request, res: Response): Promise<void> => {
+        try {
+            const pathId = parseInt(req.params.id);
+            if(!pathId) {
+                res.status(401).json({
+                    success:false,
+                    message: "path id is not valid"
+                });
+                return;
+            }
+            const breadCrumbs = await explorationRepo.getBreadCrumbPath(pathId);
+            // check if it needs validation
+            res.status(200).json({
+                success: true,
+                data: breadCrumbs
+            });
+        } catch (ex) {
+            console.log("error trying to get bread crumb for a path");
+            res.status(500).json({
+                success: false,
+                message: 'failed to get bread crumb',
+                error: ex instanceof Error ? ex.message : 'unkown error'
+            });
         }
     }
 }

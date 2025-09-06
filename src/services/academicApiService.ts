@@ -1,5 +1,4 @@
 import axios, { AxiosResponse, AxiosError } from 'axios';
-import { time } from 'console';
 
 interface Author {
     id?: string;
@@ -47,6 +46,37 @@ class SemanticScholarAPI {
         wdMs: 5 * 60 * 1000
     }
 
+    // Generic retry wrapper for axios calls (handles 429 + transient errors)
+    private withRetry = async <T>(
+        request: () => Promise<AxiosResponse<T>>,
+        attempts: number = 3
+    ): Promise<AxiosResponse<T>> => {
+        let lastError: unknown;
+        for (let i = 0; i < attempts; i++) {
+            try {
+                return await request();
+            } catch (error) {
+                lastError = error;
+                const axErr = error as AxiosError;
+                const status = axErr.response?.status;
+                const retryAfterHeader = axErr.response?.headers?.['retry-after'] as string | undefined;
+                const retryAfterMs = retryAfterHeader ? parseInt(retryAfterHeader, 10) * 1000 : undefined;
+
+                // Retry for 429 or 5xx or network errors or timeouts
+                const shouldRetry = status === 429 || (status && status >= 500) ||
+                    axErr.code === 'ECONNRESET' || axErr.code === 'ETIMEDOUT' || axErr.code === 'ECONNABORTED';
+                if (!shouldRetry || i === attempts - 1) {
+                    break;
+                }
+
+                const backoff = retryAfterMs ?? Math.min(4000, 1000 * Math.pow(2, i));
+                console.warn(`Semantic Scholar API rate-limited or transient error (status ${status}). Retrying in ${backoff}ms...`);
+                await new Promise(resolve => setTimeout(resolve, backoff));
+            }
+        }
+        throw lastError instanceof Error ? lastError : new Error('Request failed');
+    }
+
     private rateLimitCheck = async (): Promise<void> => {
         const now = Date.now();
 
@@ -78,12 +108,16 @@ class SemanticScholarAPI {
                     affiliation: author.affiliation || undefined
                 }
             }),
-            publicationDate: apiPaper.publicationDate || apiPaper.year.toString(),
+            publicationDate: apiPaper.publicationDate || apiPaper.year?.toString() || '',
             citationCount: apiPaper.citationCount || 0,
             venue: apiPaper.venue || undefined,
             url: apiPaper.url || undefined,
-            references: apiPaper.references.map((ref: any) => ref.paperId) || [],
-            citations: apiPaper.citations.map((cite: any) => cite.paperId) || [],
+            references: (apiPaper.references || [])
+                .map((ref: any) => ref ? (ref.paperId || ref) : null)
+                .filter(Boolean),
+            citations: (apiPaper.citations || [])
+                .map((cite: any) => cite ? (cite.paperId || cite) : null)
+                .filter(Boolean),
             apiSource: 'semantic_scholar'
         }
     }
@@ -97,7 +131,7 @@ class SemanticScholarAPI {
                 query: params.query,
                 limit: params.limit || 10,
                 offset: params.offset || 0,
-                fields: 'title,abstract,paperId,authors,publicationDate,citationCount,venue,url,references,citations'
+                fields: 'title,abstract,paperId,authors,publicationDate,citationCount,venue,url'
             }
 
             if (params.year) {
@@ -115,24 +149,24 @@ class SemanticScholarAPI {
             let response: AxiosResponse<any>;
 
             try {
-                response = await axios.get(search, {
+                response = await this.withRetry(() => axios.get(search, {
                     params: queryParams,
-                    timeout: 30000,
+                    timeout: 60000,
                     headers: {
                         'User-Agent': 'Academic-Discovery-Platform/1.0'
                     }
-                });
+                }));
             } catch (error) {
                 console.log('regular search failed, trying bulk search...');
                 const bulkSearchUrl = `${this.baseUrl}/paper/search/bulk`;
 
-                response = await axios.get(bulkSearchUrl, {
+                response = await this.withRetry(() => axios.get(bulkSearchUrl, {
                     params: queryParams,
-                    timeout: 30000,
+                    timeout: 60000,
                     headers: {
                         'User-Agent': 'Academic-Discovery-Platform/1.0'
                     }
-                });
+                }));
             }
 
             const data = response.data;
@@ -159,15 +193,15 @@ class SemanticScholarAPI {
 
             const url = `${this.baseUrl}/paper/${paperId}`;
 
-            const response: AxiosResponse<any> = await axios.get(url, {
+            const response: AxiosResponse<any> = await this.withRetry(() => axios.get(url, {
                 params: {
                     fields: 'title,abstract,paperId,authors,publicationDate,citationCount,venue,url,references,citations'
                 },
-                timeout: 30000,
+                timeout: 60000,
                 headers: {
                     'User-Agent': 'Academic-Discovery-Platform/1.0'
                 }
-            });
+            }));
 
             const data = response.data;
             const transformedData = this.transformPaper(data);
@@ -190,7 +224,7 @@ class SemanticScholarAPI {
                     limit,
                     fields: 'title,abstract,paperId,authors,publicationDate,citationCount,venue,url,references,citations'
                 },
-                timeout: 30000,
+                timeout: 60000,
                 headers: {
                     'User-Agent': 'Academic-Discovery-Platform/1.0'
                 }

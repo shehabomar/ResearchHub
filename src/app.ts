@@ -5,16 +5,22 @@ import cors from 'cors';
 import helmet from 'helmet';
 
 import { jwtService } from './utils/jwt';
-import { authRouter, paperRouter } from './routes/routes';
+import { authRouter, paperRouter, citationRouter, explorationRouter } from './routes/routes';
 import DatabaseService from './db/db';
+import { explorationRepo } from './repositories/explorationRepository';
 
 const app = express();
 
 // middlewares
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
 app.use(cors({
-    origin: config.server_url,
+    origin: (origin, callback) => {
+        if (!origin) return callback(null, true);
+        if (/^http:\/\/localhost:\d+$/.test(origin)) return callback(null, true);
+        return callback(null, true); // fallback allow; tighten for production
+    },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true
@@ -36,6 +42,8 @@ app.get('/', (req, res) => {
 // mounting routes
 app.use('/api/auth', authRouter);
 app.use('/api/papers', paperRouter);
+app.use('/api/citations', citationRouter);
+app.use('api/exploration', explorationRouter);
 
 app.post('/generate-token', (req, res) => {
     try {

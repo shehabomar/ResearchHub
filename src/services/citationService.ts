@@ -15,8 +15,8 @@ interface CitationTreeOptions {
 }
 
 class CitationService {
-    private static readonly DEFAULT_MAX_DEPTH = 2;
-    private static readonly DEFAULT_MAX_REFS = 3;
+    private static readonly DEFAULT_MAX_DEPTH = 5;
+    private static readonly DEFAULT_MAX_REFS = 5;
     private static readonly RATE_LIMIT_DELAY = 1000;
 
     static async buildCitationTree(
@@ -43,38 +43,56 @@ class CitationService {
             visited.add(paperId);
             let paper = await paperRepo.getPaperById(paperId);
 
+            // If paper exists but doesn't have references/citations, fetch fresh from API (with retry handled inside)
+            if (paper && (!paper.meta_data?.references || paper.meta_data.references.length === 0)) {
+                if (depth > 0) {
+                    await this.delay(this.RATE_LIMIT_DELAY);
+                }
+
+                try {
+                    const apiPaper = await semanticScholarAPI.getPaperById(paperId);
+                    if (apiPaper) {
+                        paper = await paperRepo.savePaper(apiPaper);
+                        console.log(`refreshed ${paper.title} with references from API`);
+                    }
+                } catch (error) {
+                    console.log(`Failed to refresh paper ${paperId} from API:`, error);
+                    // Continue with existing paper data when rate-limited; avoid failing entire tree
+                }
+            }
+
             if (!paper) {
                 if (depth > 0) {
                     await this.delay(this.RATE_LIMIT_DELAY);
                 }
 
-                const apiPaper = await semanticScholarAPI.getPaperById(paperId);
-                if (!apiPaper) {
-                    return null;
+                try {
+                    const apiPaper = await semanticScholarAPI.getPaperById(paperId);
+                    if (apiPaper) {
+                        paper = await paperRepo.savePaper(apiPaper);
+                        console.log(`saved ${paper.title} to database`);
+                    }
+                } catch (ex) {
+                    console.log(`API fetch failed for ${paperId}:`, ex);
+                    return null; // gracefully skip this branch on rate limit/temporary failure
                 }
-
-                paper = await paperRepo.savePaper(apiPaper);
-                console.log(`saved ${paper.title} to database`);
+            }
+            
+            if (!paper) {
+                return null;
             }
 
             const references = paper.meta_data?.references || [];
-            const limitedReferences = references.slice(0, maxReferencesPerLevel);
-            const referencesTrees: CitationTreeNode[] = [];
+            const citations = paper.meta_data?.citations || [];
 
-            for (const refId of limitedReferences) {
-                if (typeof refId === 'string' && refId.trim()) {
-                    const refTree = await this.buildCitationTree(
-                        refId,
-                        options,
-                        depth + 1,
-                        new Set(visited)
-                    );
-
-                    if (refTree) {
-                        referencesTrees.push(refTree);
-                    }
-                }
-            }
+            const relatedPapers = depth === 0 ? citations : references;
+            const limitedRelated = relatedPapers.slice(0, maxReferencesPerLevel);
+            const validIds = limitedRelated.filter((id: any) => typeof id === 'string' && id.trim());
+            const childPromises = validIds.map((relatedId: string) =>
+                this.buildCitationTree(relatedId, options, depth + 1, new Set(visited))
+            );
+            const childResults = await Promise.all(childPromises);
+            const referencesTrees: CitationTreeNode[] = (childResults.filter(Boolean) as CitationTreeNode[]);
 
             const node: CitationTreeNode = {
                 paper,
@@ -86,7 +104,7 @@ class CitationService {
                 node.totalNodes = this.countNodes(node);
             }
 
-            console.log(`built tree for ${paper.title} with ${referencesTrees.length} reference branches`);
+            console.log(`built tree for ${paper.title} with ${referencesTrees.length} related branches (depth ${depth})`);
             return node;
 
         } catch (error) {
