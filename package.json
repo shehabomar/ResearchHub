@@ -8,7 +8,13 @@
     "build": "tsc",
     "db:setup": "npm run dev",
     "test:exploration": "ts-node src/testing/test_exploration_repo.ts",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "frontend:install": "cd frontend && npm install",
+    "frontend:dev": "cd frontend && npm run dev",
+    "frontend:build": "cd frontend && npm run build",
+    "dev:full": "concurrently \"npm run dev\" \"npm run frontend:dev\"",
+    "install:all": "npm install && npm run frontend:install",
+    "build:all": "npm run build && npm run frontend:build"
   },
   "keywords": [],
   "author": "",
@@ -36,6 +42,7 @@
     "@types/cookie-parser": "^1.4.8",
     "@types/jsonwebtoken": "^9.0.9",
     "@types/node": "^22.15.29",
+    "concurrently": "^9.2.0",
     "eslint": "^9.28.0",
     "nodemon": "^3.1.10",
     "prettier": "^3.5.3",
